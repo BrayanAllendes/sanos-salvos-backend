@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Base de datos para Usuarios (PostgreSQL)
+  postgres-db:
+    image: postgres:15
+    container_name: postgres-usuarios
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: brayan
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: db_usuarios
+
+  # Base de datos para Mascotas (MongoDB)
+  mongodb-db:
+    image: mongo:latest
+    container_name: mongo-mascotas
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: brayan
+      MONGO_INITDB_ROOT_PASSWORD: password123
+  # Message broker para los microservicios
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+  # Servicio Eureka / Discovery Server
+  discovery-server:
+    build: ./discovery-server
+    container_name: discovery-server
+    ports:
+      - "8761:8761"
+    depends_on:
+      - mongodb-db
+      - postgres-db

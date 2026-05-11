@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sano y Salvo - Login</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div id="loginSection">
+        <h2>Login</h2>
+        <input type="email" id="email" placeholder="Email"><br><br>
+        <input type="password" id="pass" placeholder="Password"><br><br>
+        <button onclick="doLogin()">Entrar</button>
+    </div>
+
+    <div id="appSection" class="hidden">
+        <h2>Mis Mascotas</h2>
+        <button onclick="getMascotas()">Cargar Mascotas</button>
+        <ul id="lista"></ul>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8080/api";
+
+        async function doLogin() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('pass').value;
+
+            const res = await fetch(`${API_URL}/usuarios/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                localStorage.setItem('token', data.token); // Guardamos el JWT
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('appSection').classList.remove('hidden');
+                alert("Login exitoso");
+            } else {
+                alert("Error en el login");
+            }
+        }
+
+        async function getMascotas() {
+            const token = localStorage.getItem('token');
+            const res = await fetch(`${API_URL}/mascotas`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const data = await res.json();
+            const lista = document.getElementById('lista');
+            lista.innerHTML = data.map(m => `<li>${m.nombre} - ${m.raza}</li>`).join('');
+        }
+    </script>
+</body>
+</html>

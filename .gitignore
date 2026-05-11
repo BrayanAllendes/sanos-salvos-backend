@@ -1,0 +1,16 @@
+# No subir carpetas de compilado (lo más pesado)
+**/target/
+bin/
+
+# No subir archivos de configuración del editor (basura de VS Code o IntelliJ)
+.vscode/
+.idea/
+*.iml
+
+# No subir archivos de sistema
+Thumbs.db
+.DS_Store
+
+# No subir archivos de Replit
+.replit
+replit.nix

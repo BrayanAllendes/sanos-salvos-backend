@@ -1,0 +1,45 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*" # Clave para que el frontend local no rebote
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+            allowedHeaders: "*"
+      routes:
+        # 1. Microservicio de Usuarios (Público: Login/Registro)
+        - id: ms-usuarios
+          uri: lb://ms-usuarios
+          predicates:
+            - Path=/api/usuarios/**
+
+        # 2. Microservicio de Mascotas (Protegido con JWT)
+        - id: ms-mascotas
+          uri: lb://ms-mascotas
+          predicates:
+            - Path=/api/mascotas/**
+          filters:
+            - AuthenticationFilter
+
+        # 3. Microservicio de Notificaciones (Opcional, pero mejor tenerlo)
+        - id: ms-notificaciones
+          uri: lb://ms-notificaciones
+          predicates:
+            - Path=/api/notificaciones/**
+          filters:
+            - AuthenticationFilter # También lo protegemos por seguridad
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
