@@ -1,18 +1,26 @@
 version: '3.8'
-
+ 
 services:
-  # Base de datos para Usuarios (PostgreSQL)
+ 
+  # ── Base de datos Usuarios (PostgreSQL) ────────────────────────────────────
   postgres-db:
     image: postgres:15
     container_name: postgres-usuarios
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: brayan
+      POSTGRES_USER:     brayan
       POSTGRES_PASSWORD: password123
-      POSTGRES_DB: db_usuarios
-
-  # Base de datos para Mascotas (MongoDB)
+      POSTGRES_DB:       db_usuarios
+    # FIX: Healthcheck para que ms-usuarios espere a que Postgres esté listo
+    # antes de intentar crear el pool de conexiones JPA.
+    healthcheck:
+      test:     ["CMD-SHELL", "pg_isready -U brayan -d db_usuarios"]
+      interval: 10s
+      timeout:  5s
+      retries:  5
+ 
+  # ── Base de datos Mascotas (MongoDB) ───────────────────────────────────────
   mongodb-db:
     image: mongo:latest
     container_name: mongo-mascotas
@@ -21,23 +29,124 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: brayan
       MONGO_INITDB_ROOT_PASSWORD: password123
-  # Message broker para los microservicios
+ 
+  # ── Message Broker (RabbitMQ) ──────────────────────────────────────────────
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
     ports:
       - "5672:5672"
-      - "15672:15672"
+      - "15672:15672"     # UI de administración: http://localhost:15672
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
-
-  # Servicio Eureka / Discovery Server
+    # FIX: Healthcheck crítico. RabbitMQ tarda ~15s en estar realmente listo.
+    # Sin esto, ms-mascotas y ms-notificaciones fallan al arrancar porque
+    # intentan conectarse antes de que el broker acepte conexiones AMQP.
+    healthcheck:
+      test:     ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout:  5s
+      retries:  10
+ 
+  # ── Discovery Server (Eureka) ──────────────────────────────────────────────
   discovery-server:
     build: ./discovery-server
     container_name: discovery-server
     ports:
       - "8761:8761"
     depends_on:
-      - mongodb-db
-      - postgres-db
+      postgres-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      mongodb-db:
+        condition: service_started
+ 
+  # ── Microservicio de Usuarios ──────────────────────────────────────────────
+  ms-usuarios:
+    build: ./ms-usuarios
+    container_name: ms-usuarios
+    ports:
+      - "8081:8081"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-db:5432/db_usuarios
+      # FIX: Se agregan explícitamente las credenciales de la DB.
+      # El application.properties traía password=password123 (para dev local),
+      # pero el contenedor Postgres usa localpass. La variable de entorno
+      # sobreescribe el properties, dejando el stack funcional en Docker.
+      - SPRING_DATASOURCE_USERNAME=brayan
+      - SPRING_DATASOURCE_PASSWORD=password123
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+ 
+  # ── Microservicio de Mascotas ──────────────────────────────────────────────
+  ms-mascotas:
+    build: ./ms-mascotas
+    container_name: ms-mascotas
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://brayan:password123@mongodb-db:27017/db_mascotas?authSource=admin
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+      mongodb-db:
+        condition: service_started
+ 
+  # ── Microservicio de Notificaciones ───────────────────────────────────────
+  ms-notificaciones:
+    build: ./ms-notificaciones
+    container_name: ms-notificaciones
+    ports:
+      - "8083:8083"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+      - SPRING_RABBITMQ_HOST=rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      discovery-server:
+        condition: service_started
+ 
+  # ── API Gateway ────────────────────────────────────────────────────────────
+  api-gateway:
+    build: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://discovery-server:8761/eureka/
+    depends_on:
+      discovery-server:
+        condition: service_started
+      ms-usuarios:
+        condition: service_started
+      ms-mascotas:
+        condition: service_started
+ 
+  # ── Frontend React (Nginx) ─────────────────────────────────────────────────
+  # FIX: Se incorpora el frontend al stack para que todo levante con
+  # un único "docker-compose up --build".
+  #
+  # El JS compilado corre en el NAVEGADOR del usuario, no dentro del
+  # contenedor. Por eso las llamadas a http://localhost:8080 apuntan
+  # al puerto del HOST (api-gateway expuesto), y funcionan sin proxy.
+  #
+  # Acceso: http://localhost:3000
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      api-gateway:
+        condition: service_started
