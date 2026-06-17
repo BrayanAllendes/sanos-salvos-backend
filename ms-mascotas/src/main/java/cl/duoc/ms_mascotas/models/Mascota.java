@@ -14,10 +14,17 @@ public class Mascota {
     private Long idDueno; // Usamos siempre 'n'
     private Double latitud;
     private Double longitud;
+    
+    // Nuevos campos para trazabilidad completa
+    private String chip;
+    private String vacunas;
+    private String sector;
+    private String prioridad;
+    private Boolean despachado;
 
     public Mascota() {} // Constructor vacío fundamental
 
-    public Mascota(String id, String nombre, String tipo, String estado, String descripcion, Long idDueno, Double latitud, Double longitud) {
+    public Mascota(String id, String nombre, String tipo, String estado, String descripcion, Long idDueno, Double latitud, Double longitud, String chip, String vacunas, String sector, String prioridad, Boolean despachado) {
         this.id = id;
         this.nombre = nombre;
         this.tipo = tipo;
@@ -26,6 +33,11 @@ public class Mascota {
         this.idDueno = idDueno;
         this.latitud = latitud;
         this.longitud = longitud;
+        this.chip = chip;
+        this.vacunas = vacunas;
+        this.sector = sector;
+        this.prioridad = prioridad;
+        this.despachado = despachado;
     }
 
     // Getters y Setters limpios
@@ -45,4 +57,14 @@ public class Mascota {
     public void setLatitud(Double latitud) { this.latitud = latitud; }
     public Double getLongitud() { return longitud; }
     public void setLongitud(Double longitud) { this.longitud = longitud; }
+    public String getChip() { return chip; }
+    public void setChip(String chip) { this.chip = chip; }
+    public String getVacunas() { return vacunas; }
+    public void setVacunas(String vacunas) { this.vacunas = vacunas; }
+    public String getSector() { return sector; }
+    public void setSector(String sector) { this.sector = sector; }
+    public String getPrioridad() { return prioridad; }
+    public void setPrioridad(String prioridad) { this.prioridad = prioridad; }
+    public Boolean getDespachado() { return despachado; }
+    public void setDespachado(Boolean despachado) { this.despachado = despachado; }
 }

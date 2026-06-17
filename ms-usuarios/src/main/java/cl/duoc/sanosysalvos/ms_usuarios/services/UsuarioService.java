@@ -45,6 +45,11 @@ public class UsuarioService {
         return repository.findByEmail(email);
     }
 
+    // BUSCAR POR ID (Para validación desde otros microservicios)
+    public Optional<Usuario> buscarPorIdLong(Long id) {
+        return repository.findById(id);
+    }
+
     // VALIDAR CREDENCIALES (Para el Login)
     public boolean verificarPassword(String passwordPlana, String passwordHashed) {
         return passwordEncoder.matches(passwordPlana, passwordHashed);
